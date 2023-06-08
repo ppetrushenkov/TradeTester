@@ -9,7 +9,7 @@ df = pd.read_csv('eurusd_h1.csv', parse_dates=['dt'])
 df.drop('pair', axis=1, inplace=True)
 
 PERIOD = 42
-df['sma'] = ta.SMA(df['close'], PERIOD)
+df['sma'] = ta.EMA(df['close'], PERIOD)
 
 df['trend'] = np.where(df['sma'] > df['sma'].shift(1),  1,
               np.where(df['sma'] < df['sma'].shift(1), -1,
@@ -24,7 +24,8 @@ tester = TradeTester(
     trend=df['trend'],
     entries=df['entries']
 )
-tester.set_stoploss_method('channel', PERIOD, 2)
+tester.set_stoploss_method('channel', PERIOD)
 tester.set_takeprofit_method('atr', PERIOD, 7)
 tester.run_strategy(n=42)
 print(tester.form_order_statistic())
+tester.show_order_statistic()
