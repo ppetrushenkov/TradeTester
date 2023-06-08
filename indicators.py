@@ -86,15 +86,12 @@ def highest_value(series: pd.Series, period: int) -> int:
     """Return highest value for specified period"""
     return series[-period:].max()
 
-def drawdown(profit: pd.Series, window: int = 504, show_plot: bool = False):
+def drawdown(profit: pd.Series, window: int = 504):
+    profit = profit.cumsum()
     rolling_max = profit.rolling(window, min_periods=1).max()
     drawdown = profit/rolling_max - 1.0
     max_drawdown = drawdown.rolling(window, min_periods=1).min()
-    if show_plot:
-        plt.plot(drawdown)
-        plt.plot(max_drawdown)
-        plt.show()
-    return max_drawdown
+    return drawdown, max_drawdown
 
 def sharp_ratio(profit: pd.Series) -> pd.Series:
     return profit.mean() / profit.std()
