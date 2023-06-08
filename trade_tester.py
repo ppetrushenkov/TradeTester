@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import talib as ta
-plt.style.use('ggplot')
+plt.style.use('seaborn-v0_8-whitegrid')
 
 
 @dataclass
@@ -203,7 +203,7 @@ class TradeTester:
                     self.__print_log(f'SELL ORDER PENDED at {self.order.open_price}', idx)
 
             # If order was set
-            if self.in_market:
+            elif self.in_market:
                 for i in range(n):
                     # Work with pended orders
                     if self.order.order_status == 'stop':
@@ -218,7 +218,7 @@ class TradeTester:
                                 self.__print_log(f'ORDER IN MARKET at {self.order.open_price}', idx)
 
                     # Work with market orders
-                    if self.order.order_status == 'in market':
+                    elif self.order.order_status == 'in market':
                         # if BUY order
                         if self.order.order_dir == 'buy':
                             if self.lo[idx + i] <= self.order.sl:
@@ -228,7 +228,7 @@ class TradeTester:
                                 self.close_order(self.order.tp, self.dt[idx + i], 'tp')
                                 break
                         # if SELL order
-                        if self.order.order_dir == 'sell':
+                        elif self.order.order_dir == 'sell':
                             if self.hi[idx + i] >= self.order.sl:
                                 self.close_order(self.order.sl, self.dt[idx + i], 'sl')
                                 break
@@ -279,15 +279,25 @@ class TradeTester:
             return 'lose'
         else: return 'canceled'
 
-    def form_order_statistic(self, show_stat: bool = True):
+    def order_lifetime(self, open_time, close_time):
+        "Return order lifetime in hours"
+        diff = pd.to_datetime(close_time) - pd.to_datetime(open_time)
+        return diff.total_seconds() / 3600
+
+    def form_order_statistic(self):
 
         self.orderBookDf = pd.DataFrame(self.orderBook)
+        self.orderBookDf['order_lifetime'] = self.orderBookDf.apply(
+            lambda x: self.order_lifetime(x['open_dt'], x['close_dt']), axis=1
+        )
         profit = self.orderBookDf['profit']
         self.orderBookDf['win/lose'] = profit.apply(self.win_lose_draw)
         win_lose_ratio = self.orderBookDf['win/lose'].value_counts(normalize=True).to_frame().T
 
         win_orders = self.orderBookDf[profit > 0]
         lose_orders = self.orderBookDf[profit < 0]
+
+        trade_drawdown, max_drawdown = drawdown(profit)
 
         stat = pd.DataFrame({
             'Orders count:': self.orderBookDf[self.orderBookDf['win/lose'] != 'canceled'].shape[0],
@@ -299,18 +309,45 @@ class TradeTester:
             'PnL order ratio:': win_lose_ratio['win'].values[0] / win_lose_ratio['lose'].values[0],
             'PnL profit ratio:': win_orders['profit'].mean() / abs(lose_orders['profit'].mean()),
             'Total (pips):': (profit.cumsum().values[-1]) / self.points,
-            'Drawdown %:': drawdown(profit, show_plot=False).min(),
+            'Drawdown %:': max_drawdown.min(),
             'Sharp Ratio:': sharp_ratio(profit)
         }, index=['statistic'])
+        return stat.T.to_markdown(tablefmt="grid")
 
-        if show_stat:
-            returns = profit[self.orderBookDf['win/lose'] != 'canceled'].values
-            fix, ax = plt.subplots(2, 1, figsize=(8, 8))
-            ax[0].hist(returns, bins=30)
-            ax[0].set_xlabel('Returns')
-            ax[0].set_ylabel('Count')
-            ax[1].plot(self.orderBookDf.open_dt, profit.cumsum())
-            ax[1].set_xlabel('Date')
-            ax[1].set_ylabel('Account')
-            plt.show()
-        return stat.T
+    def show_order_statistic(self):
+        profit = self.orderBookDf['profit']
+        trade_drawdown, max_drawdown = drawdown(profit)
+        returns = profit[self.orderBookDf['win/lose'] != 'canceled'].values
+
+        fig, ax = plt.subplots(2, 2, figsize=(8, 6))
+        ax[0, 0].set_title('Account gain')
+        ax[0, 0].plot(self.orderBookDf.open_dt, profit.cumsum())
+        ax[0, 0].set_xlabel('Date')
+        ax[0, 0].set_ylabel('Account')
+        ax[0, 0].xaxis.set_tick_params(rotation=45)
+        
+        ax[0, 1].set_title('Returns distribution')
+        ax[0, 1].hist(returns, bins=30)
+        ax[0, 1].vlines(0, 
+                        ymin=0, 
+                        ymax=ax[0, 1].get_ylim()[1],
+                        colors='k', linestyles='dashed')
+        ax[0, 1].set_xlabel('Returns')
+        ax[0, 1].set_ylabel('Count')
+        
+        ax[1, 0].set_title('Drawdown')
+        ax[1, 0].plot(self.orderBookDf.open_dt, trade_drawdown)
+        ax[1, 0].plot(self.orderBookDf.open_dt, max_drawdown)
+        ax[1, 0].set_xlabel('Date')
+        ax[1, 0].set_ylabel('Drawdown')
+        ax[1, 0].xaxis.set_tick_params(rotation=45)
+
+        ax[1, 1].set_title('Order lifetime')
+        ax[1, 1].scatter(self.orderBookDf['order_lifetime'], profit)
+        ax[1, 1].set_xlabel('Order lifetime')
+        ax[1, 1].set_ylabel('Profit')
+
+        fig.suptitle("Overview", fontsize=16)
+        plt.tight_layout()
+        plt.show()
+    
