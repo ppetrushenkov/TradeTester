@@ -38,7 +38,7 @@ class TradeTester:
         self.lo = trade_data['low'].values
         self.cl = trade_data['close'].values
 
-        self.trend = trend.values
+        self.trend = trend
         self.entries = entries.values
 
         # Stop Loss and Take Profit Parameters
@@ -169,6 +169,12 @@ class TradeTester:
     def run_strategy(self, n):
         # iterate through each bar
         for idx in tqdm(range(n, len(self.cl) - n)):
+            current_dt = self.dt[idx]
+            current_op = self.op[idx]
+            current_hi = self.hi[idx]
+            current_lo = self.lo[idx]
+            current_cl = self.cl[idx]
+
             # If uptrend and BUY condition
             if not self.in_market:
                 if self.trend[idx] == 1 and self.entries[idx] == 1:
@@ -176,8 +182,8 @@ class TradeTester:
                     tp = self.__get_tp(idx, 1)
                     self.order = Order(order_status='stop',
                                     order_dir='buy',
-                                    open_dt=self.dt[idx],
-                                    open_price=self.hi[idx] + self.thresh,
+                                    open_dt=current_dt,
+                                    open_price=current_hi + self.thresh,
                                     bar_id=idx,
                                     close_price=None,
                                     close_dt=None,
@@ -192,8 +198,8 @@ class TradeTester:
                     tp = self.__get_tp(idx, -1)
                     self.order = Order(order_status='stop',
                                     order_dir='sell',
-                                    open_dt=self.dt[idx],
-                                    open_price=self.lo[idx] - self.thresh,
+                                    open_dt=current_dt,
+                                    open_price=current_lo - self.thresh,
                                     bar_id=idx,
                                     close_price=None,
                                     close_dt=None,
@@ -205,15 +211,21 @@ class TradeTester:
             # If order was set
             elif self.in_market:
                 for i in range(n):
+                    next_dt = self.dt[idx + i]
+                    next_op = self.op[idx + i]
+                    next_hi = self.hi[idx + i]
+                    next_lo = self.lo[idx + i]
+                    next_cl = self.cl[idx + i]
+
                     # Work with pended orders
                     if self.order.order_status == 'stop':
                         if self.order.order_dir == 'buy':
-                            if self.hi[idx + i] > self.order.open_price:
+                            if next_hi > self.order.open_price:
                                 self.order.order_status = 'in market'
                                 self.__print_log(f'ORDER IN MARKET at {self.order.open_price}', idx)
                                 
                         elif self.order.order_dir == 'sell':
-                            if self.lo[idx + i] < self.order.open_price:
+                            if next_lo < self.order.open_price:
                                 self.order.order_status = 'in market'
                                 self.__print_log(f'ORDER IN MARKET at {self.order.open_price}', idx)
 
@@ -221,27 +233,28 @@ class TradeTester:
                     elif self.order.order_status == 'in market':
                         # if BUY order
                         if self.order.order_dir == 'buy':
-                            if self.lo[idx + i] <= self.order.sl:
-                                self.close_order(self.order.sl, self.dt[idx + i], 'sl')
+                            if next_lo <= self.order.sl:
+                                self.close_order(self.order.sl, next_dt, 'sl')
                                 break
-                            elif self.hi[idx + i] >= self.order.tp:
-                                self.close_order(self.order.tp, self.dt[idx + i], 'tp')
+                            elif next_hi >= self.order.tp:
+                                self.close_order(self.order.tp, next_dt, 'tp')
                                 break
                         # if SELL order
                         elif self.order.order_dir == 'sell':
-                            if self.hi[idx + i] >= self.order.sl:
-                                self.close_order(self.order.sl, self.dt[idx + i], 'sl')
+                            if next_hi >= self.order.sl:
+                                self.close_order(self.order.sl, next_dt, 'sl')
                                 break
-                            elif self.lo[idx + i] <= self.order.tp:
-                                self.close_order(self.order.tp, self.dt[idx + i], 'tp')
+                            elif next_lo <= self.order.tp:
+                                self.close_order(self.order.tp, next_dt, 'tp')
                                 break
 
-                    # If order still in work
-                    if i == n - 1:
-                        if self.order.order_status == 'stop':
-                            self.close_order(self.order.open_price, self.dt[idx + i], 'canceled')
-                        if self.order.order_status == 'in market':
-                            self.close_order(self.cl[idx + i], self.dt[idx + i], 'closed')
+                # If order still in work
+                if self.order.order_status == 'stop':
+                    self.close_order(self.order.open_price, next_dt, 'canceled')
+                    continue
+                elif self.order.order_status == 'in market':
+                    self.close_order(next_cl, next_dt, 'closed')
+                    continue
 
     def append_order_into_orderbook(self):
         """
@@ -264,12 +277,12 @@ class TradeTester:
         self.order.order_status = status
         self.order.close_price = close_price
         self.order.close_dt = close_datetime
-        self.in_market = False
         profit = self.__calculate_profit(self.order.open_price,
                                          self.order.close_price,
                                          self.order.order_dir)
         self.__print_log(f'ORDER CLOSED with profit: {profit}')
         self.append_order_into_orderbook()
+        self.in_market = False
         return
 
     def win_lose_draw(self, profit: pd.Series):
@@ -314,12 +327,12 @@ class TradeTester:
         }, index=['statistic'])
         return stat.T.to_markdown(tablefmt="grid")
 
-    def show_order_statistic(self):
+    def show_orders_statistic(self):
         profit = self.orderBookDf['profit']
         trade_drawdown, max_drawdown = drawdown(profit)
         returns = profit[self.orderBookDf['win/lose'] != 'canceled'].values
 
-        fig, ax = plt.subplots(2, 2, figsize=(8, 6))
+        fig, ax = plt.subplots(2, 2, figsize=(10, 8))
         ax[0, 0].set_title('Account gain')
         ax[0, 0].plot(self.orderBookDf.open_dt, profit.cumsum())
         ax[0, 0].set_xlabel('Date')
