@@ -1,4 +1,3 @@
-import matplotlib.pyplot as plt
 import talib as ta
 import numpy as np
 import pandas as pd
@@ -9,6 +8,28 @@ def donchian_channel(high: pd.Series, low: pd.Series, period: int = 21) -> pd.Da
     lower = ta.MIN(low, period)
     middle = (upper + lower) / 2
     return pd.concat([upper, lower, middle], keys=['upper', 'lower', 'middle'], axis=1)
+
+
+def channel_trend(data: pd.DataFrame):
+    hi = data['high'].values
+    lo = data['low'].values
+
+    hi_channel = data['upper'].values
+    lo_channel = data['lower'].values
+
+    flag = 0
+    trend = []
+
+    for i in range(len(hi)):
+        if flag != 1 and hi[i] >= hi_channel[i]:
+            flag = 1
+
+        elif flag != -1 and lo[i] <= lo_channel[i]:
+            flag = -1
+
+        trend.append(flag)
+
+    return np.array(trend)
 
 
 def chande_kroll_stop(high: pd.Series, low: pd.Series, close: pd.Series, p, x, q):
@@ -86,11 +107,11 @@ def highest_value(series: pd.Series, period: int) -> int:
     """Return highest value for specified period"""
     return series[-period:].max()
 
-def drawdown(profit: pd.Series, window: int = 504):
-    profit = profit.cumsum()
-    rolling_max = profit.rolling(window, min_periods=1).max()
-    drawdown = profit/rolling_max - 1.0
-    max_drawdown = drawdown.rolling(window, min_periods=1).min()
+def drawdown(profit: pd.Series):
+    profit = profit.cumsum() + 100
+    rolling_max = profit.cummax()
+    drawdown = profit / rolling_max - 1.0
+    max_drawdown = drawdown.cummin()
     return drawdown, max_drawdown
 
 def sharp_ratio(profit: pd.Series) -> pd.Series:
