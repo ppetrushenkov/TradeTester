@@ -10,7 +10,6 @@ df.drop('pair', axis=1, inplace=True)
 
 PERIOD = 42
 df['sma'] = ta.EMA(df['close'], PERIOD)
-
 df['trend'] = np.where(df['sma'] > df['sma'].shift(1),  1,
               np.where(df['sma'] < df['sma'].shift(1), -1,
                                                         0))
@@ -25,7 +24,7 @@ tester = TradeTester(
     entries=df['entries']
 )
 tester.set_stoploss_method('channel', PERIOD)
-tester.set_takeprofit_method('atr', PERIOD, 7)
+tester.set_takeprofit_method('atr', PERIOD, 6)
 tester.run_strategy(n=42)
 print(tester.form_order_statistic())
-tester.show_order_statistic()
+tester.show_orders_statistic()
