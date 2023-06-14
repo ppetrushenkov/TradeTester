@@ -3,19 +3,19 @@ import numpy as np
 import pandas as pd
 
 
-def donchian_channel(high: pd.Series, low: pd.Series, period: int = 21) -> pd.DataFrame(columns=['upper', 'lower', 'middle']):
+def donchian_channel(high: pd.Series, low: pd.Series, period: int = 21):
     upper = ta.MAX(high, period)
     lower = ta.MIN(low, period)
     middle = (upper + lower) / 2
-    return pd.concat([upper, lower, middle], keys=['upper', 'lower', 'middle'], axis=1)
+    return upper, middle, lower
 
 
-def channel_trend(data: pd.DataFrame):
-    hi = data['high'].values
-    lo = data['low'].values
+def channel_trend(high: pd.Series, low: pd.Series, upper: pd.Series, lower: pd.Series):
+    hi = high.values
+    lo = low.values
 
-    hi_channel = data['upper'].values
-    lo_channel = data['lower'].values
+    hi_channel = upper.values
+    lo_channel = lower.values
 
     flag = 0
     trend = []
@@ -31,6 +31,8 @@ def channel_trend(data: pd.DataFrame):
 
     return np.array(trend)
 
+def trend_on_sessions(data: pd.DataFrame):
+    pass
 
 def chande_kroll_stop(high: pd.Series, low: pd.Series, close: pd.Series, p, x, q):
     channel = donchian_channel(high, low, p)
