@@ -17,6 +17,7 @@ class Order:
     order_dir: str
     open_dt: str
     close_dt: str
+    close_bar_id: int
     open_price: float
     close_price: float
     tp: float
@@ -47,6 +48,11 @@ class TradeTester:
         self.sl_mult = 2
         self.tp_mult = 5
 
+        # Entry parameters
+        self.entry_method = None
+        self.entry_value = None
+        self.entry_mult = None
+
         # Parameters
         self.indent = 5 * points
         self.points = points
@@ -61,6 +67,7 @@ class TradeTester:
             'open_dt': [],
             'open_price': [],
             'close_dt': [],
+            'close_bar_id': [],
             'close_price': [],
             'status': [],
             'profit': []
@@ -106,8 +113,16 @@ class TradeTester:
         else:
             self.entries = entries.values
 
-    def set_entry_method(self, kind: Literal['close', 'channel', 'atr', 'bar_extremum'], order_type: Literal['limit', 'stop'] = 'stop'):
-        pass
+    def set_entry_method(self, 
+                         kind: Literal['close', 'channel', 'atr', 'bar_extremum'], 
+                         value: int | float,
+                         mult: int,
+                         order_type: Literal['limit', 'stop'] = 'stop'):
+        self.entry_method = kind
+        self.entry_value = value
+        self.order_type = order_type
+        if kind == 'atr':
+            self.entry_mult = mult
 
     def __get_entry(self, idx: int, trade_dir: int):
         pass
@@ -229,6 +244,7 @@ class TradeTester:
                                     open_dt=current_dt,
                                     open_price=current_hi + self.indent,
                                     bar_id=idx,
+                                    close_bar_id=None,
                                     close_price=None,
                                     close_dt=None,
                                     sl=sl,
@@ -245,6 +261,7 @@ class TradeTester:
                                     open_dt=current_dt,
                                     open_price=current_lo - self.indent,
                                     bar_id=idx,
+                                    close_bar_id=None,
                                     close_price=None,
                                     close_dt=None,
                                     sl=sl,
@@ -278,26 +295,26 @@ class TradeTester:
                         # if BUY order
                         if self.order.order_dir == 'buy':
                             if next_lo <= self.order.sl:
-                                self.__close_order(self.order.sl, next_dt, 'sl')
+                                self.__close_order(self.order.sl, idx+i, 'sl')
                                 break
                             elif next_hi >= self.order.tp:
-                                self.__close_order(self.order.tp, next_dt, 'tp')
+                                self.__close_order(self.order.tp, idx+i, 'tp')
                                 break
                         # if SELL order
                         elif self.order.order_dir == 'sell':
                             if next_hi >= self.order.sl:
-                                self.__close_order(self.order.sl, next_dt, 'sl')
+                                self.__close_order(self.order.sl, idx+i, 'sl')
                                 break
                             elif next_lo <= self.order.tp:
-                                self.__close_order(self.order.tp, next_dt, 'tp')
+                                self.__close_order(self.order.tp, idx+i, 'tp')
                                 break
 
                 # If order still in work
                 if self.order.order_status == 'stop':
-                    self.__close_order(self.order.open_price, next_dt, 'canceled')
+                    self.__close_order(self.order.open_price, idx+i, 'canceled')
                     continue
                 elif self.order.order_status == 'in market':
-                    self.__close_order(next_cl, next_dt, 'closed')
+                    self.__close_order(next_cl, idx+i, 'closed')
                     continue
 
         self.__form_order_book()
@@ -312,6 +329,7 @@ class TradeTester:
         self.orderBook['open_dt'].append(self.order.open_dt)
         self.orderBook['open_price'].append(self.order.open_price)
         self.orderBook['close_dt'].append(self.order.close_dt)
+        self.orderBook['close_bar_id'].append(self.order.close_bar_id)
         self.orderBook['close_price'].append(self.order.close_price)
         self.orderBook['status'].append(self.order.order_status)
         self.orderBook['profit'].append(self.__calculate_profit(self.order.open_price,
@@ -319,10 +337,12 @@ class TradeTester:
                                                                 self.order.order_dir))
         return
 
-    def __close_order(self, close_price, close_datetime, status: Literal['tp', 'sl', 'canceled', 'closed']):
+    def __close_order(self, close_price, idx, status: Literal['tp', 'sl', 'canceled', 'closed']):
         self.order.order_status = status
         self.order.close_price = close_price
-        self.order.close_dt = close_datetime
+        # self.order.close_dt = close_datetime
+        self.order.close_dt = self.dt[idx]
+        self.order.close_bar_id = idx
         profit = self.__calculate_profit(self.order.open_price,
                                          self.order.close_price,
                                          self.order.order_dir)
@@ -345,9 +365,7 @@ class TradeTester:
     
     def __form_order_book(self):
         self.orderBookDf = pd.DataFrame(self.orderBook)
-        self.orderBookDf['order_lifetime'] = self.orderBookDf.apply(
-            lambda x: self.__order_lifetime(x['open_dt'], x['close_dt']), axis=1
-        )
+        self.orderBookDf['bars_in_deal'] = self.orderBookDf['close_bar_id'] - self.orderBookDf['bar_id']
         self.orderBookDf['win/lose'] = self.orderBookDf['profit'].apply(self.__win_lose_draw)
         self.returns = pd.Series(data=self.orderBookDf[self.orderBookDf['win/lose'] != 'canceled']['profit'].values, 
                                  index=self.orderBookDf[self.orderBookDf['win/lose'] != 'canceled']['open_dt'].values)
@@ -405,8 +423,8 @@ class TradeTester:
         ax[1, 0].xaxis.set_tick_params(rotation=45)
 
         ax[1, 1].set_title('Order lifetime')
-        ax[1, 1].scatter(self.orderBookDf['order_lifetime'], profit)
-        ax[1, 1].set_xlabel('Order lifetime')
+        ax[1, 1].scatter(self.orderBookDf['bars_in_deal'], profit)
+        ax[1, 1].set_xlabel('Bars')
         ax[1, 1].set_ylabel('Profit')
 
         fig.suptitle("Overview", fontsize=16)
