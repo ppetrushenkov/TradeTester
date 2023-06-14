@@ -24,22 +24,20 @@ class Order:
 
 
 class TradeTester:
-    def __init__(self,
-                 trade_data,
-                 trend,
-                 entries,
-                 points: float = 0.00001,
-                 show_log: bool = False):
+    def __init__(
+            self,
+            points: float = 0.00001,
+            show_log: bool = False):
         
         # Data
-        self.dt = trade_data['dt'].values
-        self.op = trade_data['open'].values
-        self.hi = trade_data['high'].values
-        self.lo = trade_data['low'].values
-        self.cl = trade_data['close'].values
+        self.dt = None
+        self.op = None
+        self.hi = None
+        self.lo = None        
+        self.cl = None
 
-        self.trend = trend
-        self.entries = entries.values
+        self.trend = None
+        self.entries = None
 
         # Stop Loss and Take Profit Parameters
         self.sl_method = None
@@ -48,6 +46,11 @@ class TradeTester:
         self.tp_value = None
         self.sl_mult = 2
         self.tp_mult = 5
+
+        # Parameters
+        self.indent = 5 * points
+        self.points = points
+        self.show_log = show_log
 
         # Order Parameters
         self.in_market = False
@@ -63,11 +66,52 @@ class TradeTester:
             'profit': []
         }
         self.orderBookDf = None
+        self.returns = None
 
-        self.thresh = 5 * points
-        self.points = points
-        self.show_log = show_log
     
+    def add_data(self,
+                 datetime_data: np.ndarray | pd.Series,
+                 open_data: np.ndarray | pd.Series,
+                 high_data: np.ndarray | pd.Series,
+                 low_data: np.ndarray | pd.Series,
+                 close_data: np.ndarray | pd.Series,
+                 volume_data: np.ndarray | pd.Series = None):
+        """
+        
+        """
+        if isinstance(datetime_data, np.ndarray):
+            self.dt = datetime_data
+            self.op = open_data
+            self.hi = high_data
+            self.lo = low_data
+            self.cl = close_data
+            self.vo = volume_data if volume_data else None
+        else:
+            self.dt = datetime_data.values
+            self.op = open_data.values
+            self.hi = high_data.values
+            self.lo = low_data.values
+            self.cl = close_data.values
+            self.vo = volume_data.values if volume_data else None
+    
+    def add_trend(self, trend):
+        if isinstance(trend, np.ndarray):
+            self.trend = trend
+        else:
+            self.trend = trend.values
+
+    def add_entries(self, entries):
+        if isinstance(entries, np.ndarray):
+            self.entries = entries
+        else:
+            self.entries = entries.values
+
+    def set_entry_method(self, kind: Literal['close', 'channel', 'atr', 'bar_extremum'], order_type: Literal['limit', 'stop'] = 'stop'):
+        pass
+
+    def __get_entry(self, idx: int, trade_dir: int):
+        pass
+
     def set_stoploss_method(self, kind: Literal['fixed', 'channel', 'atr', 'bar_extremum'], value: int | float, mult: int = 2):
         self.sl_method = kind
         self.sl_value = value
@@ -96,9 +140,9 @@ class TradeTester:
         
         elif self.sl_method == 'bar_extremum':
             if trade_dir == 1:
-                return self.lo[idx] - self.thresh
+                return self.lo[idx] - self.indent
             else:
-                return self.hi[idx] + self.thresh
+                return self.hi[idx] + self.indent
             
         elif self.sl_method == 'atr':
             period = self.sl_value + 1
@@ -183,7 +227,7 @@ class TradeTester:
                     self.order = Order(order_status='stop',
                                     order_dir='buy',
                                     open_dt=current_dt,
-                                    open_price=current_hi + self.thresh,
+                                    open_price=current_hi + self.indent,
                                     bar_id=idx,
                                     close_price=None,
                                     close_dt=None,
@@ -199,7 +243,7 @@ class TradeTester:
                     self.order = Order(order_status='stop',
                                     order_dir='sell',
                                     open_dt=current_dt,
-                                    open_price=current_lo - self.thresh,
+                                    open_price=current_lo - self.indent,
                                     bar_id=idx,
                                     close_price=None,
                                     close_dt=None,
@@ -234,29 +278,31 @@ class TradeTester:
                         # if BUY order
                         if self.order.order_dir == 'buy':
                             if next_lo <= self.order.sl:
-                                self.close_order(self.order.sl, next_dt, 'sl')
+                                self.__close_order(self.order.sl, next_dt, 'sl')
                                 break
                             elif next_hi >= self.order.tp:
-                                self.close_order(self.order.tp, next_dt, 'tp')
+                                self.__close_order(self.order.tp, next_dt, 'tp')
                                 break
                         # if SELL order
                         elif self.order.order_dir == 'sell':
                             if next_hi >= self.order.sl:
-                                self.close_order(self.order.sl, next_dt, 'sl')
+                                self.__close_order(self.order.sl, next_dt, 'sl')
                                 break
                             elif next_lo <= self.order.tp:
-                                self.close_order(self.order.tp, next_dt, 'tp')
+                                self.__close_order(self.order.tp, next_dt, 'tp')
                                 break
 
                 # If order still in work
                 if self.order.order_status == 'stop':
-                    self.close_order(self.order.open_price, next_dt, 'canceled')
+                    self.__close_order(self.order.open_price, next_dt, 'canceled')
                     continue
                 elif self.order.order_status == 'in market':
-                    self.close_order(next_cl, next_dt, 'closed')
+                    self.__close_order(next_cl, next_dt, 'closed')
                     continue
 
-    def append_order_into_orderbook(self):
+        self.__form_order_book()
+
+    def __append_order_into_orderbook(self):
         """
         Append order data into order book
         :return:
@@ -273,7 +319,7 @@ class TradeTester:
                                                                 self.order.order_dir))
         return
 
-    def close_order(self, close_price, close_datetime, status: Literal['tp', 'sl', 'canceled', 'closed']):
+    def __close_order(self, close_price, close_datetime, status: Literal['tp', 'sl', 'canceled', 'closed']):
         self.order.order_status = status
         self.order.close_price = close_price
         self.order.close_dt = close_datetime
@@ -281,30 +327,34 @@ class TradeTester:
                                          self.order.close_price,
                                          self.order.order_dir)
         self.__print_log(f'ORDER CLOSED with profit: {profit}')
-        self.append_order_into_orderbook()
+        self.__append_order_into_orderbook()
         self.in_market = False
         return
 
-    def win_lose_draw(self, profit: pd.Series):
+    def __win_lose_draw(self, profit: pd.Series):
         if profit > 0:
             return 'win'
         elif profit < 0:
             return 'lose'
         else: return 'canceled'
 
-    def order_lifetime(self, open_time, close_time):
+    def __order_lifetime(self, open_time, close_time):
         "Return order lifetime in hours"
         diff = pd.to_datetime(close_time) - pd.to_datetime(open_time)
         return diff.total_seconds() / 3600
-
-    def form_order_statistic(self):
-
+    
+    def __form_order_book(self):
         self.orderBookDf = pd.DataFrame(self.orderBook)
         self.orderBookDf['order_lifetime'] = self.orderBookDf.apply(
-            lambda x: self.order_lifetime(x['open_dt'], x['close_dt']), axis=1
+            lambda x: self.__order_lifetime(x['open_dt'], x['close_dt']), axis=1
         )
+        self.orderBookDf['win/lose'] = self.orderBookDf['profit'].apply(self.__win_lose_draw)
+        self.returns = pd.Series(data=self.orderBookDf[self.orderBookDf['win/lose'] != 'canceled']['profit'].values, 
+                                 index=self.orderBookDf[self.orderBookDf['win/lose'] != 'canceled']['open_dt'].values)
+        return 
+    
+    def form_order_statistic(self):
         profit = self.orderBookDf['profit']
-        self.orderBookDf['win/lose'] = profit.apply(self.win_lose_draw)
         win_lose_ratio = self.orderBookDf['win/lose'].value_counts(normalize=True).to_frame().T
 
         win_orders = self.orderBookDf[profit > 0]
@@ -330,7 +380,6 @@ class TradeTester:
     def show_orders_statistic(self):
         profit = self.orderBookDf['profit']
         trade_drawdown, max_drawdown = drawdown(profit)
-        returns = profit[self.orderBookDf['win/lose'] != 'canceled'].values
 
         fig, ax = plt.subplots(2, 2, figsize=(10, 8))
         ax[0, 0].set_title('Account gain')
@@ -340,7 +389,7 @@ class TradeTester:
         ax[0, 0].xaxis.set_tick_params(rotation=45)
         
         ax[0, 1].set_title('Returns distribution')
-        ax[0, 1].hist(returns, bins=30)
+        ax[0, 1].hist(self.returns, bins=30)
         ax[0, 1].vlines(0, 
                         ymin=0, 
                         ymax=ax[0, 1].get_ylim()[1],
