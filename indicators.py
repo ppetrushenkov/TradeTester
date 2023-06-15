@@ -10,29 +10,45 @@ def donchian_channel(high: pd.Series, low: pd.Series, period: int = 21):
     return upper, middle, lower
 
 
-def channel_trend(high: pd.Series, low: pd.Series, upper: pd.Series, lower: pd.Series):
+def channel_trend(high: pd.Series, low: pd.Series, upper: pd.Series, middle: pd.Series, lower: pd.Series):
     hi = high.values
     lo = low.values
 
     hi_channel = upper.values
     lo_channel = lower.values
+    mi_channel = middle.values
 
     flag = 0
     trend = []
 
     for i in range(len(hi)):
         if flag != 1 and hi[i] >= hi_channel[i]:
-            flag = 1
+            if lo[i] > mi_channel[i]:
+                flag = 1
+            else:
+                flag = 0
 
         elif flag != -1 and lo[i] <= lo_channel[i]:
-            flag = -1
+            if hi[i] < mi_channel[i]:
+                flag = -1
+            else:
+                flag = 0
 
         trend.append(flag)
 
     return np.array(trend)
 
-def trend_on_sessions(data: pd.DataFrame):
-    pass
+def trend_on_sessions(dt_data: pd.Series, close: pd.Series, session_hour: int = 9):
+    hours = pd.to_datetime(dt_data).values
+    dt = dt_data.values
+    cl = close.values
+    flag = 0
+
+    previous_close = None
+    current_close = None
+
+    for i in range(len(dt)):
+        
 
 def chande_kroll_stop(high: pd.Series, low: pd.Series, close: pd.Series, p, x, q):
     channel = donchian_channel(high, low, p)
