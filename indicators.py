@@ -39,16 +39,7 @@ def channel_trend(high: pd.Series, low: pd.Series, upper: pd.Series, middle: pd.
     return np.array(trend)
 
 def trend_on_sessions(dt_data: pd.Series, close: pd.Series, session_hour: int = 9):
-    hours = pd.to_datetime(dt_data).values
-    dt = dt_data.values
-    cl = close.values
-    flag = 0
-
-    previous_close = None
-    current_close = None
-
-    for i in range(len(dt)):
-        
+    close.resample('1h')       
 
 def chande_kroll_stop(high: pd.Series, low: pd.Series, close: pd.Series, p, x, q):
     channel = donchian_channel(high, low, p)
