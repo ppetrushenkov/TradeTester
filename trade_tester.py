@@ -373,21 +373,26 @@ class TradeTester:
     
     def form_order_statistic(self):
         profit = self.orderBookDf['profit']
-        win_lose_ratio = self.orderBookDf['win/lose'].value_counts(normalize=True).to_frame().T
+        win_lose_ratio = self.orderBookDf[self.orderBookDf['win/lose'] != 'canceled']['win/lose'].value_counts(normalize=True).to_frame().T
+        win_lose_draw_ratio = self.orderBookDf['win/lose'].value_counts(normalize=True).to_frame().T
 
         win_orders = self.orderBookDf[profit > 0]
         lose_orders = self.orderBookDf[profit < 0]
 
         trade_drawdown, max_drawdown = drawdown(profit)
 
+        order_count = self.orderBookDf[self.orderBookDf['win/lose'] != 'canceled'].shape[0]
+        canceled = self.orderBookDf[self.orderBookDf['win/lose'] == 'canceled'].shape[0]
+
         stat = pd.DataFrame({
-            'Orders count:': self.orderBookDf[self.orderBookDf['win/lose'] != 'canceled'].shape[0],
+            'Orders count:': order_count,
+            'Canceled:': canceled,
+            'Canceled %:': canceled * 100 / order_count,
             'Win %:': win_lose_ratio['win'].values[0] * 100,
             'Lose %:': win_lose_ratio['lose'].values[0] * 100,
-            'Canceled %:': win_lose_ratio['canceled'].values[0] * 100,
             'Avg Profit (pips):': (win_orders['profit'].mean()) / self.points,
             'Avg Loss (pips):': (lose_orders['profit'].mean()) / self.points,
-            'PnL order ratio:': win_lose_ratio['win'].values[0] / win_lose_ratio['lose'].values[0],
+            'PnL order ratio:': win_lose_ratio['win'].values[0] / (win_lose_ratio['lose'].values[0] + win_lose_ratio['win'].values[0]),
             'PnL profit ratio:': win_orders['profit'].mean() / abs(lose_orders['profit'].mean()),
             'Total (pips):': (profit.cumsum().values[-1]) / self.points,
             'Drawdown %:': max_drawdown.min(),
