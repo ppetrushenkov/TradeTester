@@ -3,7 +3,7 @@ import numpy as np
 import talib as ta
 
 
-def impulse_candle(op, hi, lo, cl, period: int = 21, n_split: int = 4):
+def impulse_candles(op, hi, lo, cl, period: int = 21, n_split: int = 4):
     """
     Impulse candle is the candle, that have their range greater than average true range and closes around its MAX/MIN values
     """
@@ -12,7 +12,7 @@ def impulse_candle(op, hi, lo, cl, period: int = 21, n_split: int = 4):
     chunk = bar_range / n_split
     return np.where((bar_range > atr) & (cl > op) & (cl > hi - chunk),  1,
            np.where((bar_range > atr) & (cl < op) & (cl < lo + chunk), -1, 
-                                                                                  0))
+                                                                        0))
 
 
 def pinbar(op, hi, lo, cl):
