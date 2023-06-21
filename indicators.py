@@ -1,3 +1,4 @@
+from candlestick_patterns import impulse_candles
 import talib as ta
 import numpy as np
 import pandas as pd
@@ -38,8 +39,32 @@ def channel_trend(high: pd.Series, low: pd.Series, upper: pd.Series, middle: pd.
 
     return np.array(trend)
 
+def trend_based_on_impulse_candles(op: np.ndarray, hi: np.ndarray, lo: np.ndarray, cl: np.ndarray, imp: np.ndarray):
+    flag = 0
+    current_level = 0
+    trend = []
+
+    for i in range(len(op)):
+        if imp[i] == 1:  # if current candle is impulse
+            current_level == lo[i]
+            flag = 1
+        elif imp[i] == -1:
+            current_level == hi[i]
+            flag = -1
+        else:
+            if flag == 1 and cl[i] < current_level and imp[i] == -1:
+                flag = -1
+            elif flag == -1 and cl[i] > current_level and imp[i] == 1:
+                flag = 1
+            elif flag == 1 and cl[i] < current_level:
+                flag = 0
+            elif flag == -1 and cl[i] > current_level:
+                flag = 0
+        trend.append(flag)
+    return trend
+
 def trend_on_sessions(dt_data: pd.Series, close: pd.Series, session_hour: int = 9):
-    close.resample('1h')       
+    close.resample('1h')
 
 def chande_kroll_stop(high: pd.Series, low: pd.Series, close: pd.Series, p, x, q):
     channel = donchian_channel(high, low, p)
