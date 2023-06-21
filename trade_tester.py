@@ -228,11 +228,11 @@ class TradeTester:
     def run_strategy(self, n):
         # iterate through each bar
         for idx in tqdm(range(n, len(self.cl) - n)):
-            current_dt = self.dt[idx]
-            current_op = self.op[idx]
-            current_hi = self.hi[idx]
-            current_lo = self.lo[idx]
-            current_cl = self.cl[idx]
+            dti = self.dt[idx]
+            opi = self.op[idx]
+            hii = self.hi[idx]
+            loi = self.lo[idx]
+            cli = self.cl[idx]
 
             # If uptrend and BUY condition
             if not self.in_market:
@@ -241,8 +241,8 @@ class TradeTester:
                     tp = self.__get_tp(idx, 1)
                     self.order = Order(order_status='stop',
                                     order_dir='buy',
-                                    open_dt=current_dt,
-                                    open_price=current_hi + self.indent,
+                                    open_dt=dti,
+                                    open_price=hii + self.indent,
                                     bar_id=idx,
                                     close_bar_id=None,
                                     close_price=None,
@@ -258,8 +258,8 @@ class TradeTester:
                     tp = self.__get_tp(idx, -1)
                     self.order = Order(order_status='stop',
                                     order_dir='sell',
-                                    open_dt=current_dt,
-                                    open_price=current_lo - self.indent,
+                                    open_dt=dti,
+                                    open_price=loi - self.indent,
                                     bar_id=idx,
                                     close_bar_id=None,
                                     close_price=None,
@@ -272,21 +272,21 @@ class TradeTester:
             # If order was set
             elif self.in_market:
                 for i in range(n):
-                    next_dt = self.dt[idx + i]
-                    next_op = self.op[idx + i]
-                    next_hi = self.hi[idx + i]
-                    next_lo = self.lo[idx + i]
-                    next_cl = self.cl[idx + i]
+                    dtn = self.dt[idx + i]  # dtn - dt next
+                    opn = self.op[idx + i]
+                    hin = self.hi[idx + i]
+                    lon = self.lo[idx + i]
+                    cln = self.cl[idx + i]
 
                     # Work with pended orders
                     if self.order.order_status == 'stop':
                         if self.order.order_dir == 'buy':
-                            if next_hi > self.order.open_price:
+                            if hin > self.order.open_price:
                                 self.order.order_status = 'in market'
                                 self.__print_log(f'ORDER IN MARKET at {self.order.open_price}', idx)
                                 
                         elif self.order.order_dir == 'sell':
-                            if next_lo < self.order.open_price:
+                            if lon < self.order.open_price:
                                 self.order.order_status = 'in market'
                                 self.__print_log(f'ORDER IN MARKET at {self.order.open_price}', idx)
 
@@ -294,18 +294,18 @@ class TradeTester:
                     elif self.order.order_status == 'in market':
                         # if BUY order
                         if self.order.order_dir == 'buy':
-                            if next_lo <= self.order.sl:
+                            if lon <= self.order.sl:
                                 self.__close_order(self.order.sl, idx+i, 'sl')
                                 break
-                            elif next_hi >= self.order.tp:
+                            elif hin >= self.order.tp:
                                 self.__close_order(self.order.tp, idx+i, 'tp')
                                 break
                         # if SELL order
                         elif self.order.order_dir == 'sell':
-                            if next_hi >= self.order.sl:
+                            if hin >= self.order.sl:
                                 self.__close_order(self.order.sl, idx+i, 'sl')
                                 break
-                            elif next_lo <= self.order.tp:
+                            elif lon <= self.order.tp:
                                 self.__close_order(self.order.tp, idx+i, 'tp')
                                 break
 
@@ -314,7 +314,7 @@ class TradeTester:
                     self.__close_order(self.order.open_price, idx+i, 'canceled')
                     continue
                 elif self.order.order_status == 'in market':
-                    self.__close_order(next_cl, idx+i, 'closed')
+                    self.__close_order(cln, idx+i, 'closed')
                     continue
 
         self.__form_order_book()
@@ -398,7 +398,8 @@ class TradeTester:
             'Drawdown %:': max_drawdown.min(),
             'Sharp Ratio:': sharp_ratio(profit)
         }, index=['statistic'])
-        return stat.T.to_markdown(tablefmt="grid")
+        # return stat.T.to_markdown(tablefmt="grid")
+        return stat
 
     def show_orders_statistic(self):
         profit = self.orderBookDf['profit']
@@ -434,5 +435,6 @@ class TradeTester:
 
         fig.suptitle("Overview", fontsize=16)
         plt.tight_layout()
-        plt.show()
+        # plt.show()
+        return fig
     
