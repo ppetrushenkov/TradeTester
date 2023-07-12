@@ -16,7 +16,11 @@ df.drop('pair', axis=1, inplace=True)
 params = st.sidebar.title('Parameters:')
 trend_period = st.sidebar.slider('Trend period', 2, 150, value=42)
 ind_period = st.sidebar.slider('Indicator period', 2, 150, value=24)
-trend_type = st.sidebar.radio('Choose trend type', ['SMA', 'EMA', 'KAMA', 'LINREG', 'Impulse', 'Channel'], horizontal=True)
+trend_type = st.sidebar.radio('Choose trend type', 
+                              ['SMA', 'EMA', 'WMA', 'KAMA', 'MAMA', 
+                               'DEMA', 'TEMA', 'TRIMA', 'T3',
+                               'HT_TRENDLINE', 'LINREG', 'Impulse', 'Channel'], 
+                              horizontal=True)
 entries_indicator = st.sidebar.radio('Choose indicator', ['RSI', 'CCI', 'MFI'])
 cross_level = st.sidebar.slider('Level to cross', -100, 100, 50)
 # tp_period = st.sidebar.slider('SL and TP period', 10, 500, 24)
@@ -38,9 +42,44 @@ elif trend_type == 'EMA':
     trend = np.where(ma > ma.shift(1),  1,
             np.where(ma < ma.shift(1), -1,
                                         0))
+    
+elif trend_type == 'WMA':
+    ma = ta.WMA(df['close'], trend_period)
+    trend = np.where(ma > ma.shift(1),  1,
+            np.where(ma < ma.shift(1), -1,
+                                        0))
 
 elif trend_type == 'KAMA':
     ma = ta.KAMA(df['close'], trend_period)
+    trend = np.where(ma > ma.shift(1),  1,
+            np.where(ma < ma.shift(1), -1,
+                                        0))
+    
+elif trend_type == 'MAMA':
+    ma = ta.MAMA(df['close'], trend_period)
+    trend = np.where(ma > ma.shift(1),  1,
+            np.where(ma < ma.shift(1), -1,
+                                        0))
+    
+elif trend_type == 'T3':
+    ma = ta.T3(df['close'], trend_period)
+    trend = np.where(ma > ma.shift(1),  1,
+            np.where(ma < ma.shift(1), -1,
+                                        0))
+
+elif trend_type == 'DEMA':
+    ma = ta.DEMA(df['close'], trend_period)
+    trend = np.where(ma > ma.shift(1),  1,
+            np.where(ma < ma.shift(1), -1,
+                                        0))
+    
+elif trend_type == 'TEMA':
+    ma = ta.TEMA(df['close'], trend_period)
+    trend = np.where(ma > ma.shift(1),  1,
+            np.where(ma < ma.shift(1), -1,
+                                        0))
+elif trend_type == 'TRIMA':
+    ma = ta.TRIMA(df['close'], trend_period)
     trend = np.where(ma > ma.shift(1),  1,
             np.where(ma < ma.shift(1), -1,
                                         0))
