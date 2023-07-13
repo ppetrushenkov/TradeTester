@@ -1,5 +1,5 @@
 from trade_tester import TradeTester
-from indicators import level_crosses
+from indicators import level_crosses, ma_trend
 import pandas as pd
 import numpy as np
 import talib as ta
@@ -22,8 +22,8 @@ trend_type = st.sidebar.radio('Choose trend type',
                                'HT_TRENDLINE', 'LINREG', 'Impulse', 'Channel'], 
                               horizontal=True)
 entries_indicator = st.sidebar.radio('Choose indicator', ['RSI', 'CCI', 'MFI'])
-cross_level = st.sidebar.slider('Level to cross', -100, 100, 50)
-# tp_period = st.sidebar.slider('SL and TP period', 10, 500, 24)
+cross_level = st.sidebar.radio('Level to cross', [50, 0])
+ma_thresh = st.sidebar.slider('MA Lag', 1, 50, 1)
 sl_method = st.sidebar.radio('Choose stop loss method', ['fixed', 'channel', 'atr', 'bar_extremum'])
 tp_method = st.sidebar.radio('Choose take profit method', ['fixed', 'channel', 'atr', 'SL ratio'])
 sl_value = st.sidebar.slider('SL value', 1, 150, 24)
@@ -33,62 +33,47 @@ tp_mult = st.sidebar.slider('TP mult', 1, 20, 6)
 
 if trend_type == 'SMA':
     ma = ta.SMA(df['close'], trend_period)
-    trend = np.where(ma > ma.shift(1),  1,
-            np.where(ma < ma.shift(1), -1,
-                                        0))
+    trend = ma_trend(ma, ma_thresh)
 
 elif trend_type == 'EMA':
     ma = ta.EMA(df['close'], trend_period)
-    trend = np.where(ma > ma.shift(1),  1,
-            np.where(ma < ma.shift(1), -1,
-                                        0))
+    trend = ma_trend(ma, ma_thresh)
     
 elif trend_type == 'WMA':
     ma = ta.WMA(df['close'], trend_period)
-    trend = np.where(ma > ma.shift(1),  1,
-            np.where(ma < ma.shift(1), -1,
-                                        0))
+    trend = ma_trend(ma, ma_thresh)
 
 elif trend_type == 'KAMA':
     ma = ta.KAMA(df['close'], trend_period)
-    trend = np.where(ma > ma.shift(1),  1,
-            np.where(ma < ma.shift(1), -1,
-                                        0))
+    trend = ma_trend(ma, ma_thresh)
     
 elif trend_type == 'MAMA':
     ma = ta.MAMA(df['close'], trend_period)
-    trend = np.where(ma > ma.shift(1),  1,
-            np.where(ma < ma.shift(1), -1,
-                                        0))
+    trend = ma_trend(ma, ma_thresh)
     
 elif trend_type == 'T3':
     ma = ta.T3(df['close'], trend_period)
-    trend = np.where(ma > ma.shift(1),  1,
-            np.where(ma < ma.shift(1), -1,
-                                        0))
+    trend = ma_trend(ma, ma_thresh)
 
 elif trend_type == 'DEMA':
     ma = ta.DEMA(df['close'], trend_period)
-    trend = np.where(ma > ma.shift(1),  1,
-            np.where(ma < ma.shift(1), -1,
-                                        0))
+    trend = ma_trend(ma, ma_thresh)
     
 elif trend_type == 'TEMA':
     ma = ta.TEMA(df['close'], trend_period)
-    trend = np.where(ma > ma.shift(1),  1,
-            np.where(ma < ma.shift(1), -1,
-                                        0))
+    trend = ma_trend(ma, ma_thresh)
+
 elif trend_type == 'TRIMA':
     ma = ta.TRIMA(df['close'], trend_period)
-    trend = np.where(ma > ma.shift(1),  1,
-            np.where(ma < ma.shift(1), -1,
-                                        0))
+    trend = ma_trend(ma, ma_thresh)
     
 elif trend_type == 'LINREG':
     ma = ta.LINEARREG(df['close'], trend_period)
-    trend = np.where(ma > ma.shift(1),  1,
-            np.where(ma < ma.shift(1), -1,
-                                        0))
+    trend = ma_trend(ma, ma_thresh)
+
+elif trend_type == 'HT_TRENDLINE':
+    ma = ta.HT_TRENDLINE(df['close'])
+    trend = ma_trend(ma, ma_thresh)
 
 elif trend_type == 'Impulse':
     imp = impulse_candles(df['open'].values, df['high'].values, df['low'].values, df['close'].values, trend_period, 4)
