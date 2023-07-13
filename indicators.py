@@ -123,3 +123,9 @@ def linreg_trend(ma, angle: int = 30):
     ma = ma * 1e4
     return np.where(ma > angle, 1,
                     np.where(ma < angle, -1, 0))
+
+def ma_trend(ma, thresh: int = 1):
+    trend = np.where(ma > ma.shift(thresh),  1,
+            np.where(ma < ma.shift(thresh), -1,
+                                        0))
+    return trend
