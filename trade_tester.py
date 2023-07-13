@@ -39,6 +39,7 @@ class TradeTester:
 
         self.trend = None
         self.entries = None
+        self.filters = None
 
         # Stop Loss and Take Profit Parameters
         self.sl_method = None
@@ -113,6 +114,12 @@ class TradeTester:
         else:
             self.entries = entries.values
 
+    def add_filters(self, filters):
+        if isinstance(filters, np.ndarray):
+            self.filters = filters
+        else:
+            self.filters = filters.values
+
     def set_entry_method(self, 
                          kind: Literal['close', 'channel', 'atr', 'bar_extremum'], 
                          value: int | float,
@@ -123,9 +130,6 @@ class TradeTester:
         self.order_type = order_type
         if kind == 'atr':
             self.entry_mult = mult
-
-    def __get_entry(self, idx: int, trade_dir: int):
-        pass
 
     def set_stoploss_method(self, kind: Literal['fixed', 'channel', 'atr', 'bar_extremum'], value: int | float, mult: int = 2):
         self.sl_method = kind
