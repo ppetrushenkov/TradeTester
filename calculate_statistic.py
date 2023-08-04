@@ -2,6 +2,7 @@ from tqdm import tqdm
 from typing import Literal
 from indicators import donchian_channel
 import pandas as pd
+import talib as ta
 
 
 def get_update_count(data: pd.DataFrame, candles2use: pd.Series):
@@ -76,3 +77,32 @@ def extremum_update(data: pd.DataFrame, period: int = 21, method: Literal['chann
         else:
             output.append(0)
     return output
+
+
+def count_combinations(data, normalize: bool = True):
+    """
+    Calculate all combinations of 1, 0 and -1.
+    Calculate, how many times after each value goes another. 
+    """
+    combinations = {}
+
+    for i in range(len(data) - 1):
+        current = data[i]
+        next_value = data[i + 1]
+
+        if current not in combinations:
+            combinations[current] = {}
+
+        combinations[current][next_value] = combinations[current].get(next_value, 0) + 1
+
+    # Нормализация значений в процентном отношении
+    if normalize:
+        total_counts = {}
+        for key in combinations:
+            total_counts[key] = sum(combinations[key].values())
+
+        for key in combinations:
+            for subkey in combinations[key]:
+                combinations[key][subkey] = combinations[key][subkey] / total_counts[key] * 100
+
+    return combinations
