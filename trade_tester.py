@@ -40,6 +40,7 @@ class TradeTester:
         self.trend = None
         self.entries = None
         self.filters = None
+        self.result = None
 
         # Stop Loss and Take Profit Parameters
         self.sl_method = None
@@ -111,8 +112,10 @@ class TradeTester:
     def add_entries(self, entries):
         if isinstance(entries, np.ndarray):
             self.entries = entries
+            self.filters = np.ones_like(self.entries)
         else:
             self.entries = entries.values
+            self.filters = np.ones_like(self.entries)
 
     def add_filters(self, filters):
         if isinstance(filters, np.ndarray):
@@ -180,6 +183,19 @@ class TradeTester:
             else:
                 return highest_value(self.hi[:idx], self.sl_value)
 
+    def __unite_vectors(*vectors):
+        if len(vectors) == 0:
+            raise ValueError("At least one value must be provided")
+        
+        result = vectors[0]
+
+        for vec in vectors:
+            if vec is None:
+                continue
+            result = np.where(result == vec, result, 0)
+
+        return result
+    
     def __get_tp(self, idx: int, trade_dir: int):
         """
         Return the price level, where take profit will be set
@@ -212,15 +228,10 @@ class TradeTester:
                 return lowest_value(self.lo[:idx], self.tp_value)
         
         elif self.tp_method == 'SL ratio':
-            if trade_dir == 1:
-                sl = self.__get_sl(idx, 1)
-                sl_distance = abs(self.hi[idx] - sl)
-                return self.hi[idx] + sl_distance * self.tp_value
-            else:
-                sl = self.__get_sl(idx, -1)
-                sl_distance = abs(self.lo[idx] - sl)
-                return self.lo[idx] - sl_distance * self.tp_value
-
+            sl = self.__get_sl(idx, trade_dir)
+            sl_distance = abs(self.lo[idx] - sl)
+            return self.lo[idx] - sl_distance * self.tp_value
+        
     def __calculate_profit(self, entry, close, direction):
         return close - entry if direction == 'buy' else entry - close
     
@@ -240,7 +251,7 @@ class TradeTester:
 
             # If uptrend and BUY condition
             if not self.in_market:
-                if self.trend[idx] == 1 and self.entries[idx] == 1:
+                if self.trend[idx] == 1 and self.entries[idx] == 1 and self.filters[idx] == 1:
                     sl = self.__get_sl(idx, 1)
                     tp = self.__get_tp(idx, 1)
                     self.order = Order(order_status='stop',
@@ -257,7 +268,7 @@ class TradeTester:
                     self.__print_log(f'BUY ORDER PENDED at {self.order.open_price}')
                 
                 # If downtrend and SELL condition
-                elif self.trend[idx] == -1 and self.entries[idx] == -1:
+                elif self.trend[idx] == -1 and self.entries[idx] == -1 and self.filters[idx] == 1:
                     sl = self.__get_sl(idx, -1)
                     tp = self.__get_tp(idx, -1)
                     self.order = Order(order_status='stop',
@@ -439,6 +450,6 @@ class TradeTester:
 
         fig.suptitle("Overview", fontsize=16)
         plt.tight_layout()
-        # plt.show()
+        plt.show()
         return fig
     
