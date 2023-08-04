@@ -242,7 +242,7 @@ class TradeTester:
 
     def run_strategy(self, n):
         # iterate through each bar
-        for idx in tqdm(range(n, len(self.cl) - n)):
+        for idx in tqdm(range(len(self.cl) - n)):
             dti = self.dt[idx]
             opi = self.op[idx]
             hii = self.hi[idx]
@@ -286,7 +286,8 @@ class TradeTester:
 
             # If order was set
             elif self.in_market:
-                for i in range(n):
+                # for i in range(n):
+                for i in range(self.cl.shape[0] - idx):
                     dtn = self.dt[idx + i]  # dtn - dt next
                     opn = self.op[idx + i]
                     hin = self.hi[idx + i]
