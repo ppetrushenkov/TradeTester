@@ -101,3 +101,14 @@ def extremum_update(data: pd.DataFrame, period: int = 21, method: Literal['chann
         else:
             output.append(0)
     return output
+
+
+def create_filter(data: pd.DataFrame, query: str):
+    """
+    Create filter, that corresponds to the condition in query 
+    and returns np.array, containing 1 and 0.
+    1 if condition is True
+    Otherwise 0
+    """
+    mask = data.query(query).index
+    return data.index.isin(mask.values).astype(int)
