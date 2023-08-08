@@ -1,3 +1,4 @@
+from typing import Literal
 from candlestick_patterns import impulse_candles
 from scipy import signal
 import talib as ta
@@ -9,16 +10,14 @@ def donchian_channel(high: pd.Series, low: pd.Series, period: int = 21):
     upper = ta.MAX(high, period)
     lower = ta.MIN(low, period)
     middle = (upper + lower) / 2
-    return upper, middle, lower
+    return upper.values, middle.values, lower.values
 
 
-def channel_trend(high: pd.Series, low: pd.Series, upper: pd.Series, middle: pd.Series, lower: pd.Series):
+def channel_trend(high: pd.Series, low: pd.Series, period: int = 24):
     hi = high.values
     lo = low.values
 
-    hi_channel = upper.values
-    lo_channel = lower.values
-    mi_channel = middle.values
+    hi_channel, mi_channel, lo_channel = donchian_channel(high, low, period)
 
     flag = 0
     trend = []
@@ -40,7 +39,8 @@ def channel_trend(high: pd.Series, low: pd.Series, upper: pd.Series, middle: pd.
 
     return np.array(trend)
 
-def trend_based_on_impulse_candles(op: np.ndarray, hi: np.ndarray, lo: np.ndarray, cl: np.ndarray, imp: np.ndarray):
+def trend_based_on_impulse_candles(op: np.ndarray, hi: np.ndarray, lo: np.ndarray, cl: np.ndarray, period: int = 21, n_split: int = 3):
+    imp = impulse_candles(op, hi, lo, cl, period, n_split)
     flag = 0
     current_level = 0
     trend = []
@@ -64,15 +64,44 @@ def trend_based_on_impulse_candles(op: np.ndarray, hi: np.ndarray, lo: np.ndarra
         trend.append(flag)
     return trend
 
+def trend_based_on_ma(ma: pd.Series, method: Literal['slope', 'position'], price: pd.Series):
+    if method == 'slope':
+        return np.where(ma > ma.shift(1),  1,
+                np.where(ma < ma.shift(1), -1,
+                                            0))
+    elif method == 'position':
+        return np.where(price > ma,  1,
+                np.where(price < ma, -1,
+                                    0))
+
 def trend_on_sessions(dt_data: pd.Series, close: pd.Series, session_hour: int = 9):
     close.resample('1h')
 
-def chande_kroll_stop(high: pd.Series, low: pd.Series, close: pd.Series, p, x, q):
-    channel = donchian_channel(high, low, p)
+def chande_kroll_stop(high: pd.Series, low: pd.Series, close: pd.Series, p: int = 10, x: int = 1, q: int = 9):
     atr = ta.ATR(high, low, close, p)
-    upper = channel['lower'] + atr * x
-    lower = channel['upper'] - atr * x
-    return pd.concat([upper, lower], keys=['up_kroll', 'dn_kroll'], axis=1)
+    upper = ta.MAX(high, p) - atr * x
+    lower = ta.MIN(low, p) + atr * x
+    short_stop = ta.MAX(upper, q)
+    long_stop = ta.MIN(lower, q)
+    # return pd.concat([long_stop, short_stop], keys=['up_kroll', 'dn_kroll'], axis=1)
+    return long_stop, short_stop
+
+
+def chande_kroll_stop_trend(op: np.ndarray, hi: np.ndarray, lo: np.ndarray, cl: np.ndarray, p: int = 10, x: int = 1, q: int = 9):
+    upper, lower = chande_kroll_stop(hi, lo, cl, p, x, q)
+    flag = 0
+    trend = []
+
+    for i in range(len(hi)):
+        if flag != 1 and hi[i] >= upper[i]:
+            flag = 1
+
+        elif flag != -1 and lo[i] <= lower[i]:
+            flag = -1
+
+        trend.append(flag)
+
+    return np.array(trend)
 
 
 def level_crossover(current: pd.Series, level: int = 50) -> np.array:
