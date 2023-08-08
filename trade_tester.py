@@ -134,7 +134,7 @@ class TradeTester:
         if kind == 'atr':
             self.entry_mult = mult
 
-    def set_stoploss_method(self, kind: Literal['fixed', 'channel', 'atr', 'bar_extremum'], value: int | float, mult: int = 2):
+    def set_stoploss_method(self, kind: Literal['fixed', 'channel', 'atr', 'bar_extremum', 'percent'], value: int | float, mult: int = 2):
         self.sl_method = kind
         self.sl_value = value
         if kind == 'atr':
@@ -159,6 +159,12 @@ class TradeTester:
                 return self.cl[idx] - self.sl_value * self.points
             else:
                 return self.cl[idx] + self.sl_value * self.points
+            
+        elif self.sl_method == 'percent':
+            if trade_dir == 1:
+                return self.lo[idx] - (self.cl[idx] * self.sl_value / 100)
+            else:
+                return self.hi[idx] + (self.cl[idx] * self.sl_value / 100)
         
         elif self.sl_method == 'bar_extremum':
             if trade_dir == 1:
